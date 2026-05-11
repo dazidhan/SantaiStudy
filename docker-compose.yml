@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # 1. Database Service (MongoDB)
+  mongodb:
+    image: mongo:latest
+    container_name: santaistudy_mongodb
+    ports:
+      - "27017:27017" # Mapping port host:container
+    volumes:
+      - mongo_data:/data/db # Menyimpan data secara permanen meski container mati
+    restart: unless-stopped
+
+  # 2. Document AI Microservice (Python)
+  document-ai:
+    build:
+      context: ./document-ai
+      dockerfile: Dockerfile
+    container_name: santaistudy_document_ai
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # 3. Backend Utama (Node.js)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: santaistudy_backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Melakukan Override MONGODB_URI karena sekarang DB ada di container lain (mongodb), bukan localhost
+      - MONGODB_URI=mongodb://mongodb:27017/santaistudy
+    depends_on:
+      - mongodb # Backend baru menyala setelah DB menyala
+    restart: unless-stopped
+
+volumes:
+  # Deklarasi volume permanen untuk database
+  mongo_data:
