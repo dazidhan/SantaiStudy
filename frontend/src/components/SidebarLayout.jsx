@@ -1,8 +1,12 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { getCurrentUser, clearUser } from '../api/axiosClient';
 
 export default function SidebarLayout() {
+  const navigate = useNavigate();
+  const currentUser = getCurrentUser();
+
   const navItems = [
     { name: 'Beranda', path: '/dashboard', icon: 'dashboard' },
     { name: 'Tugas Saya', path: '/tasks', icon: 'task' },
@@ -12,6 +16,21 @@ export default function SidebarLayout() {
     { name: 'Statistik', path: '/stats', icon: 'bar_chart' },
     { name: 'Pengaturan', path: '/settings', icon: 'settings' },
   ];
+
+  const handleLogout = () => {
+    clearUser();
+    toast.success('Berhasil keluar. Sampai jumpa!');
+    navigate('/login');
+  };
+
+  const handleFocusSession = () => {
+    const focusPromise = new Promise((resolve) => setTimeout(resolve, 1500));
+    toast.promise(focusPromise, {
+      loading: 'Menyiapkan ruang fokus...',
+      success: 'Fokus Session Dimulai! 🔥 Jangan lupa bernapas.',
+      error: 'Gagal memulai sesi',
+    });
+  };
 
   return (
     <div className="bg-background min-h-screen text-on-background flex">
@@ -26,7 +45,7 @@ export default function SidebarLayout() {
             <p className="text-[10px] text-on-surface-variant leading-none uppercase tracking-widest mt-1">Relaxed Productivity</p>
           </div>
         </div>
-        
+
         <nav className="flex-1 space-y-1">
           {navItems.map((item) => (
             <NavLink
@@ -49,36 +68,38 @@ export default function SidebarLayout() {
             </NavLink>
           ))}
         </nav>
-        
+
         <div className="px-6 mt-auto">
-          <button 
-            onClick={() => {
-              const focusPromise = new Promise((resolve) => setTimeout(resolve, 1500));
-              toast.promise(focusPromise, {
-                loading: 'Menyiapkan ruang fokus...',
-                success: 'Fokus Session Dimulai! 🔥 Jangan lupa bernapas.',
-                error: 'Gagal memulai sesi',
-              });
-            }}
+          <button
+            onClick={handleFocusSession}
             className="w-full bg-primary text-on-primary py-3 rounded-xl font-label-md shadow-lg shadow-primary/20 flex items-center justify-center gap-2 mb-8 hover:scale-[1.02] active:scale-95 transition-all"
           >
             <span className="material-symbols-outlined text-lg">timer</span>
             Mulai Fokus Session
           </button>
-          
-          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer border-t border-outline-variant pt-4">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-primary-container shrink-0">
-              <img alt="Andi Pratama" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgTqGUQkdOWBypTSN4LoWrirTCDxR4-FU2hcisiYG_0bo5b3swLNMyzKHMQJlGQcMwLLPC1ZPAtyhDPsbOnytxS-kpCYiTiIYCCMfmW_pcXZzGBFtAXtLXcwcvj7B6fKwJWQ3MSdAEguKA3g5F6ux3hRqDyx3WQ2FGZlWjpULwn4yNOkDfAtgsP_HIncl0YjVCESgS8aiIncJC7HIf2T4uGDeC3EAkHgM011ugTW3qtgL-AhG1o_RqAR6JkLkyykCkAI0k5HV30do" />
-            </div>
-            <div className="overflow-hidden">
-              <p className="font-label-md text-on-surface truncate">Andi Pratama</p>
-              <p className="text-[10px] text-on-surface-variant">Premium Member</p>
+
+          <div className="border-t border-outline-variant pt-4">
+            <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer" onClick={() => navigate('/settings')}>
+              <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center shrink-0 text-primary font-bold text-lg">
+                {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="overflow-hidden flex-1">
+                <p className="font-label-md text-on-surface truncate">{currentUser?.name || 'Pengguna'}</p>
+                <p className="text-[10px] text-on-surface-variant truncate">{currentUser?.email || 'user@email.com'}</p>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleLogout(); }}
+                className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
+                title="Keluar"
+              >
+                <span className="material-symbols-outlined text-lg">logout</span>
+              </button>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Main Content Area (Outlet renders the child route components) */}
+      {/* Main Content Area */}
       <div className="flex-1 ml-[260px] w-[calc(100%-260px)] relative min-h-screen">
         <Outlet />
       </div>

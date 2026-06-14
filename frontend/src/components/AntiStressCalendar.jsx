@@ -40,33 +40,33 @@ export default function AntiStressCalendar({ onScheduleAdded }) {
   };
 
   return (
-    <div className="glass-card p-6 md:p-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
-        <div className="bg-emerald-500/20 p-2 rounded-xl">
-          <ShieldCheck className="w-6 h-6 text-emerald-400" />
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm p-6 md:p-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-outline-variant">
+        <div className="bg-emerald-500/10 p-2 rounded-xl">
+          <ShieldCheck className="w-6 h-6 text-emerald-600" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Kalender Anti-Stress</h2>
-          <p className="text-sm text-slate-400">Jadwal yang sangat adaptif terhadap kehidupan mahasiswa</p>
+          <h2 className="text-2xl font-bold text-on-surface">Kalender Anti-Stress</h2>
+          <p className="text-sm text-on-surface-variant">Jadwal yang sangat adaptif terhadap kehidupan mahasiswa</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div>
-          <form onSubmit={handleAutoSchedule} className="bg-dark-900/40 p-5 rounded-2xl border border-white/5 space-y-4">
-            <h3 className="font-semibold text-slate-200 mb-2">Simulasi Penjadwalan Dinamis</h3>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Masukkan estimasi jam. AI akan mencari celah waktu kosong di kalendermu dengan <span className="text-emerald-400">jeda istirahat 15 menit otomatis</span> untuk mencegah burnout.
+          <form onSubmit={handleAutoSchedule} className="bg-surface-container-low p-5 rounded-2xl border border-outline-variant space-y-4">
+            <h3 className="font-semibold text-on-surface mb-2">Simulasi Penjadwalan Dinamis</h3>
+            <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
+              Masukkan estimasi jam. AI akan mencari celah waktu kosong di kalendermu dengan <span className="text-emerald-600 font-semibold">jeda istirahat 15 menit otomatis</span> untuk mencegah burnout.
             </p>
             
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
-                <Clock className="w-4 h-4"/> Durasi Tugas (Jam)
+              <label className="block text-sm font-medium text-on-surface-variant mb-2 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-on-surface-variant"/> Durasi Tugas (Jam)
               </label>
               <input 
                 type="number" 
                 min="1" max="8"
-                className="glass-input"
+                className="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-body-sm text-on-surface outline-none transition-all"
                 value={taskDuration}
                 onChange={(e) => setTaskDuration(e.target.value)}
               />
@@ -79,27 +79,27 @@ export default function AntiStressCalendar({ onScheduleAdded }) {
         </div>
 
         <div>
-          <h3 className="font-semibold text-slate-200 mb-4 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-emerald-400"/> Celah Ditemukan Hari Ini
+          <h3 className="font-semibold text-on-surface mb-4 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-emerald-600"/> Celah Ditemukan Hari Ini
           </h3>
           
           {schedules.length === 0 ? (
-            <div className="border-2 border-dashed border-slate-700 p-8 rounded-2xl text-center text-slate-500 font-medium">
+            <div className="border-2 border-dashed border-outline-variant p-8 rounded-2xl text-center text-on-surface-variant font-medium">
               Belum ada tugas yang dijadwalkan.
             </div>
           ) : (
             <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
               {schedules.map((s, idx) => (
-                <div key={idx} className="bg-gradient-to-r from-emerald-900/40 to-dark-800 p-4 rounded-xl border border-emerald-500/30 shadow-sm relative overflow-hidden group hover:border-emerald-500 transition-colors">
+                <div key={idx} className="bg-surface-container-low p-4 rounded-xl border border-emerald-500/30 shadow-sm relative overflow-hidden group hover:border-emerald-500 transition-colors">
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
                   <div className="flex justify-between items-center ml-2">
                     <div>
-                      <p className="text-emerald-400 text-xs font-bold mb-1 tracking-wider uppercase">Tugas Teralokasi</p>
-                      <p className="text-slate-200 font-medium text-sm">Durasi: {taskDuration} Jam</p>
+                      <p className="text-emerald-600 text-xs font-bold mb-1 tracking-wider uppercase">Tugas Teralokasi</p>
+                      <p className="text-on-surface-variant font-medium text-sm">Durasi: {taskDuration} Jam</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-white font-mono font-bold">{format(new Date(s.startTime), 'HH:mm')} - {format(new Date(s.endTime), 'HH:mm')}</p>
-                      <p className="text-xs text-slate-400 mt-1">*(Termasuk padding istirahat)*</p>
+                      <p className="text-on-surface font-mono font-bold">{format(new Date(s.startTime), 'HH:mm')} - {format(new Date(s.endTime), 'HH:mm')}</p>
+                      <p className="text-xs text-on-surface-variant mt-1">*(Termasuk padding istirahat)*</p>
                     </div>
                   </div>
                 </div>

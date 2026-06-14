@@ -1,10 +1,64 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { apiClient, getUserId, getCurrentUser } from '../api/axiosClient';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
+
+const PRIORITY_LABEL = { HIGH: 'Penting', MEDIUM: 'Sedang', LOW: 'Rendah' };
+const PRIORITY_STYLE = {
+  HIGH: 'bg-error-container text-on-error-container',
+  MEDIUM: 'bg-secondary-container/20 text-on-secondary-container',
+  LOW: 'bg-surface-container-high text-on-surface-variant'
+};
 
 export default function Dashboard() {
-  const [xp, setXp] = useState(150);
-  const [level, setLevel] = useState(1);
+  const navigate = useNavigate();
+  const currentUser = getCurrentUser();
+  const userId = getUserId();
+
+  const [stats, setStats] = useState({ totalTasks: 0, completedThisWeek: 0, upcomingDeadlines: 0, productivityScore: 0 });
+  const [recentTasks, setRecentTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Selamat Pagi';
+    if (h < 17) return 'Selamat Siang';
+    return 'Selamat Malam';
+  };
+
+  useEffect(() => {
+    if (!userId) { navigate('/login'); return; }
+    const fetchData = async () => {
+      try {
+        const [tasksRes, statsRes] = await Promise.all([
+          apiClient.get(`/tasks?userId=${userId}`),
+          apiClient.get(`/stats?userId=${userId}`)
+        ]);
+
+        const taskData = tasksRes.data.data || [];
+        setRecentTasks(taskData.slice(0, 5)); // Tampilkan 5 tugas terbaru
+        setStats(statsRes.data.data || {});
+      } catch (error) {
+        console.error('Gagal memuat data dashboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [userId, navigate]);
+
+  const handleToggleTaskStatus = async (task) => {
+    const newStatus = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    setRecentTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: newStatus } : t));
+    try {
+      await apiClient.patch(`/tasks/${task._id}/status`, { status: newStatus });
+      if (newStatus === 'COMPLETED') toast.success('Tugas selesai! +10 XP 🎉');
+    } catch (e) {
+      setRecentTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: task.status } : t));
+    }
+  };
 
   return (
     <>
@@ -16,49 +70,47 @@ export default function Dashboard() {
             <span className="material-symbols-outlined text-outline">search</span>
             <input className="bg-transparent border-none focus:ring-0 text-body-sm ml-2 w-full outline-none" placeholder="Cari tugas, materi..." type="text" />
           </div>
-          <div className="hover:bg-surface-container-low rounded-full p-2 cursor-pointer transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
-          </div>
-          <div className="hover:bg-surface-container-low rounded-full p-2 cursor-pointer transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant">help_outline</span>
-          </div>
         </div>
       </header>
 
-      {/* Page Content Scrollable Area */}
+      {/* Page Content */}
       <div className="pt-24 pb-12 px-margin-page">
         {/* Hero Welcome Section */}
         <div className="mb-8 flex justify-between items-end">
           <div>
-            <h3 className="font-headline-lg text-headline-lg text-on-surface mb-1">Halo, Andi! 👋</h3>
-            <p className="font-body-lg text-body-lg text-on-surface-variant">Semangat belajar hari ini! Kamu hebat.</p>
+            <h3 className="font-headline-lg text-headline-lg text-on-surface mb-1">
+              {greeting()}, {currentUser?.name?.split(' ')[0] || 'Pengguna'}! 👋
+            </h3>
+            <p className="font-body-lg text-body-lg text-on-surface-variant">Semangat belajar hari ini! Kamu pasti bisa.</p>
           </div>
           <div className="text-right">
-             <div className="inline-flex items-center gap-2 bg-secondary-container/30 px-4 py-2 rounded-full border border-secondary/20">
-                <span className="material-symbols-outlined text-secondary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
-                <span className="font-label-md text-secondary">Level {level}</span>
-                <span className="text-secondary/50 mx-1">•</span>
-                <span className="font-label-md text-secondary">{xp} XP</span>
-             </div>
+            <div className="inline-flex items-center gap-2 bg-secondary-container/30 px-4 py-2 rounded-full border border-secondary/20">
+              <span className="material-symbols-outlined text-secondary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
+              <span className="font-label-md text-secondary">
+                {stats.productivityScore || 0}% Produktivitas
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Dashboard Bento Grid */}
         <div className="grid grid-cols-12 gap-gutter">
-          {/* Stats Summary Row */}
+          {/* Stats Cards */}
           <div className="col-span-12 md:col-span-4 lg:col-span-3">
             <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                  <span className="material-symbols-outlined">calendar_today</span>
+                  <span className="material-symbols-outlined">task</span>
                 </div>
                 <div>
-                  <p className="text-label-sm text-on-surface-variant">Tugas Hari Ini</p>
-                  <p className="text-headline-md font-bold text-on-surface">5</p>
+                  <p className="text-label-sm text-on-surface-variant">Total Tugas</p>
+                  <p className="text-headline-md font-bold text-on-surface">
+                    {loading ? <span className="animate-pulse">...</span> : stats.totalTasks || 0}
+                  </p>
                 </div>
               </div>
               <Link to="/tasks" className="text-label-md text-primary flex items-center gap-1 hover:underline">
-                Lihat semua <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                Kelola tugas <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </Link>
             </div>
           </div>
@@ -66,12 +118,14 @@ export default function Dashboard() {
           <div className="col-span-12 md:col-span-4 lg:col-span-3">
             <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-tertiary-container/10 flex items-center justify-center text-tertiary">
+                <div className="w-12 h-12 rounded-xl bg-error/10 flex items-center justify-center text-error">
                   <span className="material-symbols-outlined">alarm</span>
                 </div>
                 <div>
                   <p className="text-label-sm text-on-surface-variant">Deadline Dekat</p>
-                  <p className="text-headline-md font-bold text-on-surface">3</p>
+                  <p className="text-headline-md font-bold text-on-surface">
+                    {loading ? <span className="animate-pulse">...</span> : stats.upcomingDeadlines || 0}
+                  </p>
                 </div>
               </div>
               <Link to="/tasks" className="text-label-md text-primary flex items-center gap-1 hover:underline">
@@ -88,7 +142,9 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="text-label-sm text-on-surface-variant">Selesai Minggu Ini</p>
-                  <p className="text-headline-md font-bold text-on-surface">12</p>
+                  <p className="text-headline-md font-bold text-on-surface">
+                    {loading ? <span className="animate-pulse">...</span> : stats.completedThisWeek || 0}
+                  </p>
                 </div>
               </div>
               <Link to="/stats" className="text-label-md text-primary flex items-center gap-1 hover:underline">
@@ -100,174 +156,139 @@ export default function Dashboard() {
           <div className="col-span-12 md:col-span-12 lg:col-span-3">
             <div className="bg-primary text-on-primary p-6 rounded-2xl border border-primary/20 shadow-lg relative overflow-hidden group h-full flex flex-col justify-center">
               <div className="relative z-10">
-                <p className="text-label-sm opacity-80 mb-1">Fokus Hari Ini</p>
+                <p className="text-label-sm opacity-80 mb-1">Skor Produktivitas</p>
                 <div className="flex items-baseline gap-2 mb-4">
-                  <p className="text-[40px] font-bold">85%</p>
-                  <p className="text-label-md font-normal opacity-90">Fokus bagus! 🔥</p>
+                  <p className="text-[40px] font-bold">{loading ? '...' : `${stats.productivityScore || 0}%`}</p>
+                  <p className="text-label-md font-normal opacity-90">
+                    {(stats.productivityScore || 0) >= 70 ? 'Keren! 🔥' : 'Ayo semangat! 💪'}
+                  </p>
                 </div>
                 <div className="w-full bg-white/20 h-2 rounded-full mb-4">
-                  <div className="bg-white h-full rounded-full" style={{ width: '85%' }}></div>
+                  <div className="bg-white h-full rounded-full transition-all duration-700" style={{ width: `${stats.productivityScore || 0}%` }}></div>
                 </div>
-                <Link to="/mood" className="inline-block text-label-md bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors">
-                  Detail Fokus
+                <Link to="/stats" className="inline-block text-label-md bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors">
+                  Detail Statistik
                 </Link>
               </div>
-              {/* Background Pattern */}
               <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                <span className="material-symbols-outlined text-[120px]">psychology</span>
+                <span className="material-symbols-outlined text-[120px]">analytics</span>
               </div>
             </div>
           </div>
 
-          {/* Main Section: Next Tasks & Schedule */}
+          {/* Main Section: Task List */}
           <div className="col-span-12 lg:col-span-8 flex flex-col gap-gutter">
-            {/* Task List Card */}
             <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm overflow-hidden flex-1">
               <div className="p-6 border-b border-outline-variant flex justify-between items-center">
                 <h4 className="font-headline-sm text-headline-sm text-on-surface">Tugas Berikutnya</h4>
                 <Link to="/tasks" className="text-label-md text-primary hover:underline">Lihat semua</Link>
               </div>
               <div className="divide-y divide-outline-variant">
-                <div className="p-4 hover:bg-surface-container-low transition-colors flex items-center justify-between group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full border-2 border-primary-container flex items-center justify-center text-primary-container group-hover:bg-primary-container group-hover:text-white transition-all cursor-pointer">
-                      <span className="material-symbols-outlined text-[20px]">check</span>
+                {loading ? (
+                  [1, 2, 3].map(i => (
+                    <div key={i} className="p-4 flex items-center gap-4 animate-pulse">
+                      <div className="w-10 h-10 rounded-full bg-surface-container-high"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-surface-container-high rounded w-1/2"></div>
+                        <div className="h-3 bg-surface-container-high rounded w-1/3"></div>
+                      </div>
                     </div>
-                    <div>
-                      <h5 className="font-label-md text-on-surface">Desain Database Aplikasi PPL</h5>
-                      <p className="text-label-sm text-on-surface-variant flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px]">schedule</span> Esok • 09:00 - 11:30
-                      </p>
-                    </div>
+                  ))
+                ) : recentTasks.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <span className="material-symbols-outlined text-4xl text-outline">task_alt</span>
+                    <p className="text-on-surface-variant mt-3">Belum ada tugas. Buat tugas pertamamu!</p>
+                    <Link to="/tasks" className="mt-4 inline-block text-primary font-label-md hover:underline">+ Tambah Tugas</Link>
                   </div>
-                  <span className="px-3 py-1 bg-error-container text-on-error-container text-[10px] font-bold rounded-full uppercase">Penting</span>
-                </div>
-                
-                <div className="p-4 hover:bg-surface-container-low transition-colors flex items-center justify-between group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full border-2 border-outline flex items-center justify-center text-outline group-hover:border-primary-container group-hover:text-primary-container transition-all cursor-pointer">
-                      <span className="material-symbols-outlined text-[20px]">radio_button_unchecked</span>
+                ) : (
+                  recentTasks.filter(t => t.status !== 'COMPLETED').slice(0, 5).concat(recentTasks.filter(t => t.status === 'COMPLETED').slice(0, 2)).map((task) => (
+                    <div key={task._id} className="p-4 hover:bg-surface-container-low transition-colors flex items-center justify-between group">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => handleToggleTaskStatus(task)}
+                          className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${task.status === 'COMPLETED' ? 'bg-primary border-primary text-on-primary' : 'border-outline hover:border-primary hover:text-primary text-outline'}`}
+                        >
+                          <span className="material-symbols-outlined text-[20px]">
+                            {task.status === 'COMPLETED' ? 'check' : 'radio_button_unchecked'}
+                          </span>
+                        </button>
+                        <div className={task.status === 'COMPLETED' ? 'opacity-50' : ''}>
+                          <h5 className={`font-label-md text-on-surface ${task.status === 'COMPLETED' ? 'line-through' : ''}`}>{task.title}</h5>
+                          {task.dueDate && (
+                            <p className="text-label-sm text-on-surface-variant flex items-center gap-2">
+                              <span className="material-symbols-outlined text-[16px]">event</span>
+                              {format(new Date(task.dueDate), 'd MMMM', { locale: id })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase ${PRIORITY_STYLE[task.priority] || PRIORITY_STYLE.MEDIUM}`}>
+                        {PRIORITY_LABEL[task.priority] || task.priority}
+                      </span>
                     </div>
-                    <div>
-                      <h5 className="font-label-md text-on-surface">Membuat REST API</h5>
-                      <p className="text-label-sm text-on-surface-variant flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px]">schedule</span> 23 Mei • 13:00 - 15:45
-                      </p>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 bg-secondary-container/20 text-on-secondary-container text-[10px] font-bold rounded-full uppercase">Sedang</span>
-                </div>
-                
-                <div className="p-4 hover:bg-surface-container-low transition-colors flex items-center justify-between group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full border-2 border-outline flex items-center justify-center text-outline group-hover:border-primary-container group-hover:text-primary-container transition-all cursor-pointer">
-                      <span className="material-symbols-outlined text-[20px]">radio_button_unchecked</span>
-                    </div>
-                    <div>
-                      <h5 className="font-label-md text-on-surface">Membuat UI Login &amp; Dashboard</h5>
-                      <p className="text-label-sm text-on-surface-variant flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px]">schedule</span> 25 Mei • 10:00 - 12:00
-                      </p>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 bg-surface-container-highest text-on-surface-variant text-[10px] font-bold rounded-full uppercase">Rendah</span>
-                </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right Column: Daily Schedule & AI */}
+          {/* Right Column: AI Recommendation & Quick Actions */}
           <div className="col-span-12 lg:col-span-4 flex flex-col gap-gutter">
-            {/* Schedule Card */}
-            <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-outline-variant flex justify-between items-center">
-                <h4 className="font-headline-sm text-headline-sm text-on-surface">Jadwal Hari Ini</h4>
-                <span className="material-symbols-outlined text-on-surface-variant cursor-pointer">more_vert</span>
+            {/* Quick Action Card */}
+            <div className="bg-gradient-to-br from-primary/10 to-secondary/10 p-6 rounded-2xl border border-primary/10 shadow-sm">
+              <div className="flex items-center gap-2 mb-4 text-primary">
+                <span className="material-symbols-outlined">flash_on</span>
+                <h4 className="font-label-md">Aksi Cepat</h4>
               </div>
-              <div className="p-6 space-y-6 relative">
-                {/* Timeline line */}
-                <div className="absolute left-[39px] top-6 bottom-6 w-[2px] bg-outline-variant"></div>
-                
-                <div className="flex items-start gap-4 relative z-10">
-                  <div className="text-label-sm text-on-surface-variant w-8 pt-1 text-right">08:00</div>
-                  <div className="w-4 h-4 rounded-full bg-primary border-4 border-surface-container-lowest mt-2 shrink-0"></div>
-                  <div className="flex-1 bg-primary/5 p-3 rounded-xl border-l-4 border-primary">
-                    <h6 className="font-label-md text-on-surface">Belajar Materi AI</h6>
-                    <p className="text-label-sm text-on-surface-variant">08.00 - 09.30</p>
+              <div className="space-y-3">
+                <Link to="/tasks" className="flex items-center gap-3 p-3 bg-white/70 rounded-xl hover:bg-white transition-colors group">
+                  <span className="material-symbols-outlined text-primary">add_task</span>
+                  <div>
+                    <p className="font-label-md text-on-surface">Buat Tugas Baru</p>
+                    <p className="text-label-sm text-on-surface-variant">Dengan pemecahan AI</p>
                   </div>
-                </div>
-                
-                <div className="flex items-start gap-4 relative z-10">
-                  <div className="text-label-sm text-on-surface-variant w-8 pt-1 text-right">10:00</div>
-                  <div className="w-4 h-4 rounded-full bg-secondary border-4 border-surface-container-lowest mt-2 shrink-0"></div>
-                  <div className="flex-1 bg-secondary/5 p-3 rounded-xl border-l-4 border-secondary">
-                    <h6 className="font-label-md text-on-surface">Desain Database PPL</h6>
-                    <p className="text-label-sm text-on-surface-variant">10.00 - 12.00</p>
+                  <span className="material-symbols-outlined text-outline ml-auto group-hover:text-primary transition-colors">arrow_forward</span>
+                </Link>
+                <Link to="/mood" className="flex items-center gap-3 p-3 bg-white/70 rounded-xl hover:bg-white transition-colors group">
+                  <span className="material-symbols-outlined text-secondary">psychology</span>
+                  <div>
+                    <p className="font-label-md text-on-surface">Cek Mood Hari Ini</p>
+                    <p className="text-label-sm text-on-surface-variant">Rekomendasi berbasis emosi</p>
                   </div>
-                </div>
-                
-                <div className="flex items-start gap-4 relative z-10 opacity-60">
-                  <div className="text-label-sm text-on-surface-variant w-8 pt-1 text-right">12:00</div>
-                  <div className="w-4 h-4 rounded-full bg-outline border-4 border-surface-container-lowest mt-2 shrink-0"></div>
-                  <div className="flex-1 bg-surface-container-low p-3 rounded-xl border-l-4 border-outline">
-                    <h6 className="font-label-md text-on-surface">Istirahat</h6>
-                    <p className="text-label-sm text-on-surface-variant">12.00 - 13.00</p>
+                  <span className="material-symbols-outlined text-outline ml-auto group-hover:text-secondary transition-colors">arrow_forward</span>
+                </Link>
+                <Link to="/document-ai" className="flex items-center gap-3 p-3 bg-white/70 rounded-xl hover:bg-white transition-colors group">
+                  <span className="material-symbols-outlined text-tertiary">description</span>
+                  <div>
+                    <p className="font-label-md text-on-surface">Unggah Silabus</p>
+                    <p className="text-label-sm text-on-surface-variant">AI ekstrak deadline otomatis</p>
                   </div>
-                </div>
-                
-                <div className="flex items-start gap-4 relative z-10">
-                  <div className="text-label-sm text-on-surface-variant w-8 pt-1 text-right">13:00</div>
-                  <div className="w-4 h-4 rounded-full bg-tertiary border-4 border-surface-container-lowest mt-2 shrink-0"></div>
-                  <div className="flex-1 bg-tertiary/5 p-3 rounded-xl border-l-4 border-tertiary">
-                    <h6 className="font-label-md text-on-surface">Membaca Jurnal</h6>
-                    <p className="text-label-sm text-on-surface-variant">13.00 - 14.30</p>
-                  </div>
-                </div>
-                
-                <div className="pt-2">
-                  <Link to="/calendar" className="block text-center w-full py-2 text-label-md text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors">
-                    Lihat kalender
-                  </Link>
-                </div>
+                  <span className="material-symbols-outlined text-outline ml-auto group-hover:text-tertiary transition-colors">arrow_forward</span>
+                </Link>
               </div>
             </div>
 
-            {/* AI Recommendation Card */}
-            <div className="bg-gradient-to-br from-primary/10 to-secondary/10 p-6 rounded-2xl border border-primary/10 shadow-sm">
-              <div className="flex items-center gap-2 mb-4 text-primary">
-                <span className="material-symbols-outlined">auto_awesome</span>
-                <h4 className="font-label-md">Rekomendasi AI Untukmu</h4>
+            {/* Tips Card */}
+            <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-4 text-on-surface">
+                <span className="material-symbols-outlined text-primary">lightbulb</span>
+                <h4 className="font-label-md">Tips Produktivitas</h4>
               </div>
-              <div className="mb-4">
-                <p className="text-label-sm font-bold text-on-surface mb-1">Fokus Tinggi Terdeteksi!</p>
-                <p className="text-body-sm text-on-surface-variant">Kamu dalam kondisi terbaik hari ini. Waktunya mengerjakan tugas yang butuh fokus tinggi seperti:</p>
-              </div>
-              <ul className="space-y-2 mb-6">
-                <li className="flex items-start gap-2 text-body-sm text-on-surface">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></span>
-                  Menyelesaikan Desain Database
-                </li>
-                <li className="flex items-start gap-2 text-body-sm text-on-surface">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></span>
-                  Membuat Dokumentasi API
-                </li>
-                <li className="flex items-start gap-2 text-body-sm text-on-surface">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></span>
-                  Membaca Materi Deep Learning
-                </li>
-              </ul>
-              <button className="w-full py-3 bg-white text-primary border border-primary/20 rounded-xl font-label-md shadow-sm hover:shadow transition-shadow">
-                Lihat semua rekomendasi
-              </button>
+              <p className="text-body-sm text-on-surface-variant leading-relaxed">
+                Gunakan teknik <b>Pomodoro</b>: Fokus 25 menit, istirahat 5 menit. Ini membantu otak bekerja lebih efisien dan mengurangi kelelahan mental.
+              </p>
+              <Link to="/mood" className="mt-4 inline-flex items-center gap-1 text-primary font-label-md hover:underline">
+                Mulai sesi fokus <span className="material-symbols-outlined text-sm">timer</span>
+              </Link>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Contextual FAB */}
-      <button onClick={() => toast('Menu Tambah Cepat dibuka', { icon: '✨' })} className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-primary text-on-primary shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30">
+
+      {/* FAB */}
+      <Link to="/tasks" className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-primary text-on-primary shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30">
         <span className="material-symbols-outlined text-[28px]">add</span>
-      </button>
+      </Link>
     </>
   );
 }

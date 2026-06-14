@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient, DUMMY_USER_ID } from '../api/axiosClient';
+import { apiClient, getUserId } from '../api/axiosClient';
 import toast from 'react-hot-toast';
 
 const MOODS = [
@@ -51,18 +51,30 @@ export default function MoodFocus() {
       toast.error("Pilih mood kamu dulu ya!");
       return;
     }
+    const userId = getUserId();
+    if (!userId) { toast.error('Kamu belum login.'); return; }
     setLoading(true);
     setSuggestion(null);
     try {
-      const moodPayload = curhatan.trim() ? `${selectedMood.id} - Curhatan Tambahan: ${curhatan}` : selectedMood.id;
-      const res = await apiClient.post('/tasks/suggest', {
-        userId: DUMMY_USER_ID,
-        mood: moodPayload
+      // Simpan mood log ke backend
+      await apiClient.post('/moods', { userId, mood: selectedMood.id, notes: curhatan }).catch(() => {});
+
+      const moodPayload = curhatan.trim() ? `${selectedMood.id} - Curhatan: ${curhatan}` : selectedMood.id;
+      const [suggestRes, tasksRes] = await Promise.all([
+        apiClient.post('/tasks/suggest', { userId, mood: moodPayload }),
+        apiClient.get(`/tasks?userId=${userId}`)
+      ]);
+      const suggestionData = suggestRes.data.data;
+      // Enrich task IDs with actual task objects
+      const allTasks = tasksRes.data.data || [];
+      const enrichedTaskIds = (suggestionData.recommendedTaskIds || []).map(taskId => {
+        const task = allTasks.find(t => t._id === taskId);
+        return task || { _id: taskId, title: `Tugas ${taskId.substring(0,8)}...` };
       });
-      setSuggestion(res.data.data);
+      setSuggestion({ ...suggestionData, recommendedTasks: enrichedTaskIds });
     } catch (error) {
       console.error(error);
-      toast.error("Gagal memuat rekomendasi AI.");
+      toast.error("Gagal memuat rekomendasi AI. Pastikan backend aktif.");
     } finally {
       setLoading(false);
     }
@@ -171,28 +183,28 @@ export default function MoodFocus() {
                 </div>
 
                 <div className="space-y-4 flex-1">
-                  <p className="font-label-md text-on-surface-variant text-xs uppercase tracking-widest">Tugas yang Disarankan (ID)</p>
-                  {suggestion.recommendedTaskIds?.length > 0 ? suggestion.recommendedTaskIds.map((taskId, idx) => (
+                  <p className="font-bold text-primary text-xs uppercase tracking-widest">Tugas yang Disarankan</p>
+                  {suggestion.recommendedTasks?.length > 0 ? suggestion.recommendedTasks.map((task, idx) => (
                     <div key={idx} className="flex items-center justify-between p-4 bg-surface rounded-xl border border-outline-variant hover:border-primary transition-colors cursor-pointer group">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center text-primary">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                           <span className="material-symbols-outlined">task</span>
                         </div>
                         <div>
-                          <h4 className="font-label-md text-on-surface group-hover:text-primary transition-colors">Tugas {taskId.substring(0, 8)}...</h4>
-                          <p className="text-xs text-on-surface-variant">Berdasarkan prioritas & energi</p>
+                          <h4 className="font-label-md text-on-surface group-hover:text-primary transition-colors">{task.title}</h4>
+                          <p className="text-xs text-on-surface/80">Prioritas: {task.priority || 'MEDIUM'}</p>
                         </div>
                       </div>
-                      <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">arrow_forward</span>
+                      <span className="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform">arrow_forward</span>
                     </div>
                   )) : (
-                    <p className="text-sm text-on-surface-variant">Tidak ada tugas spesifik yang disarankan saat ini.</p>
+                    <p className="text-sm text-on-surface/80">Tidak ada tugas spesifik yang disarankan saat ini.</p>
                   )}
                 </div>
               </>
             ) : (
               <div className="text-center py-10">
-                <p className="text-on-surface-variant">Pilih mood di atas untuk mendapatkan rekomendasi dari AI.</p>
+                <p className="text-on-surface/80">Pilih mood di atas untuk mendapatkan rekomendasi dari AI.</p>
               </div>
             )}
 
@@ -201,8 +213,8 @@ export default function MoodFocus() {
                 <img alt="Brain Mascot" className="w-12 h-12 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-838ovWXSqfQYTF-Bs3_5pU6lhBpx0_mq_u7p-eGF5NkoFzfbj817e-l6V_1c5uOB_ywGG4qs9XKKeIV62ao5Jtap-tYntWY3OponQNVnpSSu6NHrpWTf-ugpyeb9wPgSW8Rm9GrnX4mRrfI5iJVocdbduxf6AjhrgC87MRpehT4cBHNQ-kYYfCaYGtDobNSYKrm__34v3nrh4sJRgCF7FTMl_ga8DXOG-gHnBIMRvhhi0TLafbHq91JYB6C5AFf2WBqXdFQAxN4" />
               </div>
               <div>
-                <p className="text-sm font-label-md text-primary">"Ayo Andi! Fokus sebentar, istirahat kemudian!"</p>
-                <p className="text-xs text-on-surface-variant">- Si Otak, AI Companion Kamu</p>
+                <p className="text-sm font-label-md text-primary font-bold">"Ayo Andi! Fokus sebentar, istirahat kemudian!"</p>
+                <p className="text-xs text-on-surface/60 font-medium">- Si Otak, AI Companion Kamu</p>
               </div>
             </div>
           </section>
@@ -210,7 +222,7 @@ export default function MoodFocus() {
           {/* Fokus Tracker Card (Right Column) */}
           <section className="col-span-12 lg:col-span-5 bg-surface-container-lowest p-8 rounded-2xl border border-outline-variant shadow-sm flex flex-col">
             <div className="flex items-center gap-3 mb-8">
-              <div className="bg-primary-container/20 p-2 rounded-lg">
+              <div className="bg-primary/10 p-2 rounded-lg">
                 <span className="material-symbols-outlined text-primary">timer</span>
               </div>
               <h2 className="font-headline-sm text-headline-sm text-on-surface">Fokus Tracker</h2>
@@ -231,7 +243,7 @@ export default function MoodFocus() {
                 ))}
               </div>
 
-              <p className="text-on-surface-variant text-body-sm mb-2">Waktu Sisa Fokus</p>
+              <p className="text-on-surface font-semibold text-body-sm mb-2">Waktu Sisa Fokus</p>
               <div className="text-[64px] font-bold text-on-surface mb-6 tracking-tight font-mono">{formatTime(timeLeft)}</div>
               
               <div className="w-full bg-surface-container-high rounded-full h-4 mb-3 overflow-hidden">
@@ -242,7 +254,7 @@ export default function MoodFocus() {
                   {isTimerRunning && <div className="absolute top-0 right-0 w-4 h-full bg-white/20 animate-pulse"></div>}
                 </div>
               </div>
-              <div className="flex justify-between w-full text-xs text-on-surface-variant font-label-md mb-12">
+              <div className="flex justify-between w-full text-xs text-on-surface font-semibold mb-12">
                 <span>Target Sesi: {focusMinutes}m</span>
               </div>
               
@@ -260,14 +272,14 @@ export default function MoodFocus() {
             </div>
             
             <div className="mt-auto border-t border-outline-variant pt-8">
-              <p className="font-label-md text-on-surface-variant text-xs uppercase tracking-widest mb-4">Statistik Fokus Terakhir</p>
+              <p className="font-bold text-primary text-xs uppercase tracking-widest mb-4">Statistik Fokus Terakhir</p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-surface-container-low">
-                  <span className="text-xs text-on-surface-variant">Sesi Terpanjang</span>
+                  <span className="text-xs text-on-surface font-medium">Sesi Terpanjang</span>
                   <div className="font-headline-sm text-primary">1j 45m</div>
                 </div>
                 <div className="p-4 rounded-xl bg-surface-container-low">
-                  <span className="text-xs text-on-surface-variant">Skor Produktivitas</span>
+                  <span className="text-xs text-on-surface font-medium">Skor Produktivitas</span>
                   <div className="font-headline-sm text-secondary">85%</div>
                 </div>
               </div>
