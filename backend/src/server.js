@@ -31,10 +31,16 @@ app.get('/', (req, res) => {
 const taskRoutes = require('./routes/taskRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
 const documentRoutes = require('./routes/documentRoutes');
+const userRoutes = require('./routes/userRoutes');
+const statsRoutes = require('./routes/statsRoutes');
+const moodRoutes = require('./routes/moodRoutes');
 
 app.use('/api/tasks', taskRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/moods', moodRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

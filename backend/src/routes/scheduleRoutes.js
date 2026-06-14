@@ -4,6 +4,24 @@ const ScheduleController = require('../controllers/ScheduleController');
 
 /**
  * @swagger
+ * /api/schedules:
+ *   get:
+ *     summary: Mengambil semua jadwal milik seorang user
+ *     tags: [Schedules]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Daftar jadwal berhasil diambil
+ */
+router.get('/', ScheduleController.getSchedules);
+
+/**
+ * @swagger
  * /api/schedules/auto:
  *   post:
  *     summary: Secara otomatis mencari jam kosong hari ini (Anti-Stress Calendar)
@@ -22,24 +40,18 @@ const ScheduleController = require('../controllers/ScheduleController');
  *             properties:
  *               userId:
  *                 type: string
- *                 example: "60d0fe4f5311236168a109ca"
  *               taskId:
  *                 type: string
- *                 example: "60d0fe4f5311236168a109cb"
  *               targetDate:
  *                 type: string
  *                 format: date-time
- *                 description: Waktu spesifik untuk penjadwalan
- *                 example: "2023-10-15T00:00:00Z"
  *               durationHours:
  *                 type: number
- *                 description: Durasi tugas dalam hitungan jam
- *                 example: 2
  *     responses:
  *       201:
- *         description: Jadwal berhasil dibuat dan menemukan slot kosong yang wajar
+ *         description: Jadwal berhasil dibuat
  *       400:
- *         description: Jadwal hari ini penuh atau tidak ada celah istirahat (Mencegah burnout)
+ *         description: Jadwal hari ini penuh
  */
 router.post('/auto', ScheduleController.autoSchedule);
 

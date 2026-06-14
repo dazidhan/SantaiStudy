@@ -62,14 +62,20 @@ Aplikasi ini sangat mudah dijalankan karena sistem Backend, Database, dan Python
 
 Ikuti 3 tahapan utama di bawah ini:
 
-### TAHAP 1: Persiapan API Key (Google Gemini)
-Karena fitur utama SantaiStudy sangat bergantung pada kecerdasan buatan, Anda memerlukan kunci API.
-1. Kunjungi [Google AI Studio](https://aistudio.google.com/).
-2. Login menggunakan akun Google Anda dan klik **"Get API Key"**.
-3. Buka folder `backend/` di proyek ini, cari file bernama `.env` (atau buat file tersebut berdasarkan `backend/.env.example`).
-4. Ganti tulisan pada `GEMINI_API_KEY` dengan kunci API yang baru saja Anda dapatkan.
+### TAHAP 1: Persiapan File Lingkungan (Environment File) & API Key
+Karena fitur utama SantaiStudy sangat bergantung pada database dan kecerdasan buatan, Anda memerlukan konfigurasi file `.env` di folder backend.
 
-*(Format `.env` Anda akan terlihat seperti ini: `GEMINI_API_KEY=AIzaSy...`)*
+1. Buka folder `backend/` pada proyek ini.
+2. Salin atau duplikat file `.env.example` dan ubah namanya menjadi `.env`:
+   * Di Linux/macOS: `cp .env.example .env`
+   * Di Windows (Command Prompt): `copy .env.example .env`
+   * Atau salin dan ganti nama file tersebut secara manual menggunakan File Explorer / VS Code.
+3. Dapatkan API Key Google Gemini:
+   * Kunjungi [Google AI Studio](https://aistudio.google.com/).
+   * Login menggunakan akun Google Anda dan klik **"Get API Key"**.
+4. Buka file `.env` yang baru Anda buat, lalu sesuaikan nilainya:
+   * Ganti `your_gemini_api_key_here` pada `GEMINI_API_KEY` dengan API Key yang baru saja Anda dapatkan.
+   * Pastikan `MONGODB_URI` dan `PORT` sesuai dengan kebutuhan Anda (secara default sudah diarahkan untuk berjalan di Docker).
 
 ### TAHAP 2: Menyalakan Mesin Backend & AI (Via Docker)
 Pastikan aplikasi **Docker Desktop** sudah menyala di laptop Anda.
